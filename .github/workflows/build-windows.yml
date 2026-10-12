@@ -76,6 +76,13 @@ jobs:
           $hit | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
           & (Join-Path $hit 'x86_64-w64-mingw32-gcc.exe') --version | Select-Object -First 1
 
+      # 上游仓库的 pubspec.lock 与 pubspec.yaml 不一致（作者新增了 video_player 等依赖
+      # 却没重新生成锁文件），直接跑 build_windows.py 会卡在 `--enforce-lockfile` 报 exit 65。
+      # 先做一次普通 pub get 同步锁文件，脚本内自带的 --enforce-lockfile 即可通过。
+      - name: 同步依赖锁文件
+        shell: pwsh
+        run: flutter pub get
+
       - name: 构建 Windows 包
         shell: pwsh
         env:
