@@ -50,18 +50,28 @@ jobs:
         run: |
           $dirs = @(
             'C:\msys64\mingw64\bin',
+            'C:\ProgramData\mingw64\mingw64\bin',
+            'C:\ProgramData\mingw64\mingw32\bin',
             'C:\tools\mingw64\bin',
             'C:\ProgramData\chocolatey\bin'
           )
-          $hit = $null
-          foreach ($d in $dirs) {
-            if (Test-Path (Join-Path $d 'x86_64-w64-mingw32-gcc.exe')) { $hit = $d; break }
+
+          function Get-MingwDir($candidates) {
+            foreach ($d in $candidates) {
+              if (Test-Path (Join-Path $d 'x86_64-w64-mingw32-gcc.exe')) { return $d }
+            }
+            return $null
           }
+
+          $hit = Get-MingwDir $dirs
           if (-not $hit) {
-            Write-Host '内置镜像未找到 MinGW-w64，改用 Chocolatey 安装…'
+            Write-Host '镜像内未找到 MinGW-w64，改用 Chocolatey 安装…'
+            # 注意：choco 的 mingw 包不生成 shim，安装后必须重新扫描定位真实 bin 目录
             choco install mingw -y --no-progress
-            $hit = 'C:\ProgramData\chocolatey\bin'
+            $hit = Get-MingwDir $dirs
           }
+          if (-not $hit) { throw '安装后仍找不到 x86_64-w64-mingw32-gcc.exe' }
+
           Write-Host "MinGW-w64 目录: $hit"
           $hit | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
           & (Join-Path $hit 'x86_64-w64-mingw32-gcc.exe') --version | Select-Object -First 1
